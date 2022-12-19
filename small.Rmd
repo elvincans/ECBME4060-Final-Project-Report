@@ -1,0 +1,285 @@
+---
+title: "R Notebook"
+output:
+  pdf_document: default
+  html_notebook: default
+---
+```{r include=FALSE}
+library(ggplot2)
+library(data.table)
+library(R.utils)
+library(Seurat)
+library(dplyr)
+library(ReactomePA)
+library(GO.db)
+library(reactome.db)
+library(limma)
+library(edgeR)
+library(rlang)
+library(httr)
+```
+
+```{r include=FALSE}
+#Path for Files of the small tumor samples for both KO and WT
+small_wt_barcodes_path <- '/Users/elvin/Desktop/GSE159996_RAW/GSM4852292_barcodes_98170.tsv.gz'
+small_wt_features_path <- '/Users/elvin/Desktop/GSE159996_RAW/GSM4852292_features_98170.tsv.gz'
+small_wt_matrix_path <- '/Users/elvin/Desktop/GSE159996_RAW/GSM4852292_matrix_98170.mtx.gz'
+
+small_ko_barcodes_path <- '/Users/elvin/Desktop/GSE159996_RAW/GSM4852293_barcodes_98171.tsv.gz'
+small_ko_features_path <- '/Users/elvin/Desktop/GSE159996_RAW/GSM4852293_features_98171.tsv.gz'
+small_ko_matrix_path <- '/Users/elvin/Desktop/GSE159996_RAW/GSM4852293_matrix_98171.mtx.gz'
+```
+
+```{r include=FALSE}
+#Create Seurat object for both KO and WT
+expression_matrix <- ReadMtx(
+  mtx = small_wt_matrix_path, features = small_wt_features_path,
+  cells = small_wt_barcodes_path)
+
+small_wt_seurat_object <- CreateSeuratObject(counts = expression_matrix, 
+                                             project = 'wt')
+
+expression_matrix <- ReadMtx(
+  mtx = small_ko_matrix_path, features = small_ko_features_path,
+  cells = small_ko_barcodes_path)
+
+small_ko_seurat_object <- CreateSeuratObject(counts = expression_matrix, 
+                                             project = 'ko')
+```
+
+
+```{r message=TRUE, include=FALSE}
+#set mitochondrial content for each cell
+small_wt_seurat_object[["percent.mt"]]<-PercentageFeatureSet(small_wt_seurat_object,
+                                                                pattern = "^mt-")
+small_ko_seurat_object[["percent.mt"]]<-PercentageFeatureSet(small_ko_seurat_object, 
+                                                                pattern = "^mt-")
+```
+
+
+```{r include=FALSE}
+# Discard cells expressing fewer than 200 or more than 5,000 unique genes and cells with more than 7.5% # mitochondrial content
+small_wt <- subset(small_wt_seurat_object, subset = nFeature_RNA > 200 & 
+                     nFeature_RNA < 5000 & percent.mt < 7.5)
+
+small_ko <- subset(small_ko_seurat_object, subset = nFeature_RNA > 200 & 
+                     nFeature_RNA < 5000 & percent.mt < 7.5)
+
+#free up space
+rm(small_wt_seurat_object,small_ko_seurat_object)
+```
+
+
+```{r include=FALSE}
+# Normalization and 2,000 most variable genes across datasets identification
+small_wt <- NormalizeData(small_wt, normalization.method = "LogNormalize", 
+                          scale.factor = 10000)
+small_ko <- NormalizeData(small_ko, normalization.method = "LogNormalize", 
+                          scale.factor = 10000)
+
+small_wt <- FindVariableFeatures(small_wt, selection.method = "vst", 
+                                 nfeatures = 2000)
+small_ko <- FindVariableFeatures(small_ko, selection.method = "vst", 
+                                 nfeatures = 2000)
+```
+
+```{r include=FALSE}
+#Integrate the WT and KO samples 
+lists <- list()
+lists[["wt"]] <- small_wt
+lists[["ko"]] <- small_ko
+
+anchorss <- FindIntegrationAnchors(object.list = lists, dims = 1:20)
+
+#free up space
+rm(lists)
+
+small_seurat <- IntegrateData(anchorset = anchorss, dims = 1:20)
+```
+
+
+```{r include=FALSE}
+#linear transformation
+small_seurat <- ScaleData(small_seurat, vars.to.regress= 'percent.mt')
+
+#unsupervised clustering of single-cells
+small_seurat <- RunPCA(small_seurat, npcs = 15)
+small_seurat<- RunUMAP(small_seurat, reduction = "pca", dims = 1:15)
+
+#find clusters
+small_seurat <- FindNeighbors(small_seurat, dims = 1:15)
+small_seurat <- FindClusters(small_seurat, pc.use = 1:10, resolution = 0.55)
+```
+
+
+```{r}
+#visulaize clustering with UMAP
+DimPlot(small_seurat, reduction = "umap", label.size=3, label =TRUE)
+```
+
+
+```{r include=FALSE}
+#important genes in paper
+features <- c('Tyr', 'Mlana','Pmel','Dct','Mitf','Ptgds', 'Cd68','Lyz2','Aif1',
+            'Dab2','Lgals3', 'Trem2','Apoe','Ccr7','H2-Eb1','H2-Ab1','Ccl5',
+            'Cd3e','Cd3g','Nkg7','Cd3d','Gzma','Pecam1','Cdh5','Cd34','Flt1',
+            'Cldn5','Col1a1', 'Col1a2','Acta2','Dcn','Col3a1','Pdgfrb','Pdpn',
+            'Irf8','Ccr9','Plac8','Ly6d','Bst2')
+```
+  
+
+```{r include=FALSE}
+#Markers used to identify each cluster
+melanoma <- c('Tyr', 'Mlana','Pmel','Dct','Mitf','Ptgds')
+tams <- c('Cd68','Lyz2','Aif1','Dab2','Lgals3', 'Trem2','Apoe')
+tnk <- c('Ccl5','Cd3e','Cd3g','Nkg7','Cd3d','Gzma')
+cafs <- c('Col1a1','Col1a2','Acta2','Dcn','Col3a1','Pdgfrb','Pdpn')
+leukocytes <- c('Irf8','Ccr9','Plac8','Ly6d','Bst2')
+```
+
+```{r}
+#Identify Melanoma cells clusters
+FeaturePlot(small_seurat, features = melanoma, label.size = 3, label = TRUE)
+```
+
+
+```{r}
+#Identify TAMs cells clusters
+FeaturePlot(small_seurat, features = tams, label.size = 3, label = TRUE)
+```
+
+
+```{r}
+#Identify T/NK cells clusters
+FeaturePlot(small_seurat, features = tnk, label.size = 3, label = TRUE)
+```
+
+
+```{r}
+#Identify CAFs cells clusters
+FeaturePlot(small_seurat, features = cafs, label.size = 3, label = TRUE)
+```
+
+
+```{r}
+#Identify Leukocytes clusters
+FeaturePlot(small_seurat, features = leukocytes, label.size = 3, label = TRUE)
+```
+
+
+```{r}
+# Visualize Renamed Clusters
+small_seurat <- RenameIdents(small_seurat, `0` = "TAMs", `1` = "Melanoma cells", 
+                             `2` = "Melanoma cells", `3` = "TAMs", 
+                             `4` = "Melanoma cells", `5` = "Melanoma cells", 
+                             `6` = "CAFs", `7` = "Cluster 7", 
+                             `8`="TAMs/dendritic cells",`9` = "Melanoma cells",
+                            `10` = "TAMs", `11` = "Endothelial")
+                            
+DimPlot(small_seurat, reduction = "umap", label.size=3, label =FALSE)
+```
+
+
+```{r include=FALSE}
+#Subclustering of Cluster 7 to identify T/NK cells and Leukocytes
+subset_cluster7 <- subset(small_seurat, idents = "Cluster 7")
+
+#Rerun #unsupervised clustering of single-cells on Cluster 7 and Find clustes
+subset_cluster7 <- RunPCA(subset_cluster7, npcs = 15)
+subset_cluster7<- RunUMAP(subset_cluster7, reduction = "pca", dims = 1:15)
+subset_cluster7 <- FindNeighbors(subset_cluster7, dims = 1:15)
+subset_cluster7 <- FindClusters(subset_cluster7, pc.use = 1:10, 
+                                resolution = 0.55)
+```
+
+
+```{r}
+#Identify T/NK Cells
+FeaturePlot(subset_cluster7, features = tnk, label.size = 3, label = TRUE)
+
+#Identify Leukocytes
+FeaturePlot(subset_cluster7, features = leukocytes, label.size = 3, label = TRUE)
+
+#Save subclustering
+subset_cluster7 <- RenameIdents(subset_cluster7, `0` = "Melanoma cells", 
+                                `1` = "Melanoma cells", `2` = "T/NK cells", 
+                                `3` = "Melanoma cells", `4` = "Leukocytes",
+                                `5` = "Melanoma cells")
+small_seurat$small_tumors <- as.character(Idents(small_seurat))
+small_seurat$small_tumors[Cells(subset_cluster7)]<-paste(Idents(subset_cluster7))
+```
+
+
+```{r}
+#Figure 2a
+DimPlot(small_seurat, group.by = "small_tumors", reduction = "umap") 
+```
+
+```{r}
+#Figure 2b
+DotPlot(small_seurat,group.by = "small_tumors", features = features) + 
+  theme(axis.text.x = element_text(angle=90))   
+```
+
+```{r}
+#Subclustering of CAFs to identify CAF cell types
+caf <- subset(small_seurat, idents = "CAFs")
+```
+
+
+```{r include=FALSE}
+#Rerun unsupervised clustering of single-cells on CAFs Cluster 
+caf <- RunPCA(caf, npcs = 13)
+caf <- RunUMAP(caf, reduction = "pca", dims = 1:13)
+caf <- FindNeighbors(caf, dims = 1:13)
+caf <- FindClusters(caf, pc.use = 1:10, resolution = 1.5)
+VlnPlot(caf, features = c('Acta2', 'Pdgfrb'), pt.size = 0)
+```
+
+
+```{r}
+#Save CAFs subclustering
+caf <- RenameIdents(caf, `0` = "vCAFs", `1` = "mCAFs", `2` = "vCAFs", 
+                    `3` = "vCAFs", `4` = "cCAFs/melCAFs", `5` = "cCAFs/melCAFs",
+                    `6` = "cCAFs/melCAFs",`7` = "vCAFs")
+small_seurat$caf <- as.character(Idents(small_seurat))
+small_seurat$caf[Cells(caf)] <- paste(Idents(caf))
+```
+
+
+```{r}
+#Figure 2e
+DimPlot(caf, reduction = "umap", label.size=3)
+```
+
+
+```{r}
+#Figure 2f
+VlnPlot(caf, features = c('Acta2', 'Pdgfrb'), pt.size = 0, log = TRUE, flip = TRUE)   
+```
+
+```{r}
+#Extended Data Fig. 2d
+small_seurat<- SetIdent(small_seurat, value = "orig.ident")
+
+VlnPlot(small_seurat, features = "Atf4", group.by = 'small_tumors', 
+        pt.size = 0, split.by = 'orig.ident', split.plot = TRUE) + 
+  ggtitle("Atf4 (small tumors)")
+
+```
+
+```{r}
+#Fig. 2c
+small_seurat<- SetIdent(small_seurat, value = "small_tumors")
+
+VlnPlot(small_seurat, features = c("Acta2", "Pdgfrb", "Col1a1", "Col1a2"), 
+        group.by = 'small_tumors', pt.size = 0, split.by = 'orig.ident', 
+        split.plot = TRUE, idents = "CAFs", ncol =2)  
+
+```
+
+```{r}
+#Fig. 2h
+VlnPlot(caf, features = c("Col1a1", "Col1a2"), pt.size = 0, 
+        split.by = 'orig.ident', split.plot = TRUE, idents = "vCAFs", ncol =1)  
+```

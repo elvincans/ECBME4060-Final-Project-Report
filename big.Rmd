@@ -1,0 +1,335 @@
+---
+title: "Untitled"
+author: "Elvin Canseco"
+date: "2022-11-12"
+output: html_document
+---
+```{r include=FALSE}
+library(ggplot2)
+library(data.table)
+library(R.utils)
+library(Seurat)
+library(dplyr)
+```
+
+```{r include=FALSE}
+#Path for Files of the big tumor samples for WT
+wt1_barcodes_path <- '/Users/elvin/Desktop/GSE159996_RAW/GSM4852284_barcodes_84849.tsv.gz'
+wt1_features_path <- '/Users/elvin/Desktop/GSE159996_RAW/GSM4852284_features_84849.tsv.gz'
+wt1_matrix_path <- '/Users/elvin/Desktop/GSE159996_RAW/GSM4852284_matrix_84849.mtx'
+
+wt2_barcodes_path <- '/Users/elvin/Desktop/GSE159996_RAW/GSM4852285_barcodes_84850.tsv.gz'
+wt2_features_path <- '/Users/elvin/Desktop/GSE159996_RAW/GSM4852285_features_84850.tsv.gz'
+wt2_matrix_path <- '/Users/elvin/Desktop/GSE159996_RAW/GSM4852285_matrix_84850.mtx.gz'
+
+wt3_barcodes_path <- '/Users/elvin/Desktop/GSE159996_RAW/GSM4852286_barcodes_84851.tsv.gz'
+wt3_features_path <- '/Users/elvin/Desktop/GSE159996_RAW/GSM4852286_features_84851.tsv.gz'
+wt3_matrix_path <- '/Users/elvin/Desktop/GSE159996_RAW/GSM4852286_matrix_84851.mtx.gz'
+
+wt4_barcodes_path <- '/Users/elvin/Desktop/GSE159996_RAW/GSM4852287_barcodes_84852.tsv.gz'
+wt4_features_path <- '/Users/elvin/Desktop/GSE159996_RAW/GSM4852287_features_84852.tsv.gz'
+wt4_matrix_path <- '/Users/elvin/Desktop/GSE159996_RAW/GSM4852287_matrix_84852.mtx.gz'
+```
+
+
+```{r include=FALSE}
+#Path for Files of the big tumor samples for KO
+ko1_barcodes_path <- '/Users/elvin/Desktop/GSE159996_RAW/GSM4852288_barcodes_84853.tsv.gz'
+ko1_features_path <- '/Users/elvin/Desktop/GSE159996_RAW/GSM4852288_features_84853.tsv.gz'
+ko1_matrix_path <- '/Users/elvin/Desktop/GSE159996_RAW/GSM4852288_matrix_84853.mtx.gz'
+
+ko2_barcodes_path <- '/Users/elvin/Desktop/GSE159996_RAW/GSM4852289_barcodes_84854.tsv.gz'
+ko2_features_path <- '/Users/elvin/Desktop/GSE159996_RAW/GSM4852289_features_84854.tsv.gz'
+ko2_matrix_path <- '/Users/elvin/Desktop/GSE159996_RAW/GSM4852289_matrix_84854.mtx.gz'
+
+ko3_barcodes_path <- '/Users/elvin/Desktop/GSE159996_RAW/GSM4852290_barcodes_84855.tsv.gz'
+ko3_features_path <- '/Users/elvin/Desktop/GSE159996_RAW/GSM4852290_features_84855.tsv.gz'
+ko3_matrix_path <- '/Users/elvin/Desktop/GSE159996_RAW/GSM4852290_matrix_84855.mtx'
+
+ko4_barcodes_path <- '/Users/elvin/Desktop/GSE159996_RAW/GSM4852291_barcodes_84856.tsv.gz'
+ko4_features_path <- '/Users/elvin/Desktop/GSE159996_RAW/GSM4852291_features_84856.tsv.gz'
+ko4_matrix_path <- '/Users/elvin/Desktop/GSE159996_RAW/GSM4852291_matrix_84856.mtx.gz'
+```
+
+```{r include=FALSE}
+#Create Seurat objects for WT
+expression_matrix <- ReadMtx(
+  mtx = wt1_matrix_path, features = wt1_features_path,
+  cells = wt1_barcodes_path)
+wt1_seurat_object <- CreateSeuratObject(counts = expression_matrix, 
+project = "wt")
+
+expression_matrix <- ReadMtx(
+  mtx = wt2_matrix_path, features = wt2_features_path,
+  cells = wt2_barcodes_path)
+wt2_seurat_object <- CreateSeuratObject(counts = expression_matrix,
+project = "wt")
+
+expression_matrix <- ReadMtx(
+  mtx = wt3_matrix_path, features = wt3_features_path,
+  cells = wt3_barcodes_path)
+wt3_seurat_object <- CreateSeuratObject(counts = expression_matrix,
+project = "wt")
+
+expression_matrix <- ReadMtx(
+  mtx = wt4_matrix_path, features = wt4_features_path,
+  cells = wt4_barcodes_path)
+wt4_seurat_object <- CreateSeuratObject(counts = expression_matrix,
+project = "wt")
+```
+
+```{r include=FALSE}
+#Create Seurat objects for KO
+expression_matrix <- ReadMtx(
+  mtx = ko1_matrix_path, features = ko1_features_path,
+  cells = ko1_barcodes_path)
+ko1_seurat_object <- CreateSeuratObject(counts = expression_matrix,
+project = "ko")
+
+expression_matrix <- ReadMtx(
+  mtx =ko2_matrix_path, features = ko2_features_path,
+  cells = ko2_barcodes_path)
+ko2_seurat_object <- CreateSeuratObject(counts = expression_matrix,
+project = "ko")
+
+expression_matrix <- ReadMtx(
+  mtx = ko3_matrix_path, features = ko3_features_path,
+  cells = ko3_barcodes_path)
+ko3_seurat_object <- CreateSeuratObject(counts = expression_matrix,
+project = "ko")
+
+expression_matrix <- ReadMtx(
+  mtx = ko4_matrix_path, features = ko4_features_path,
+  cells = ko4_barcodes_path)
+ko4_seurat_object <- CreateSeuratObject(counts = expression_matrix,
+project = "ko")
+
+# Clear up space
+rm(wt1_barcodes_path, wt1_features_path, wt1_matrix_path, wt2_barcodes_path,
+   wt2_features_path, wt2_matrix_path, wt3_barcodes_path, wt3_features_path, 
+   wt3_matrix_path,wt4_barcodes_path, wt4_features_path, wt4_matrix_path, 
+   ko1_barcodes_path, ko1_features_path, ko1_matrix_path,ko2_barcodes_path,
+   ko2_features_path, ko2_matrix_path, ko3_barcodes_path,ko3_features_path, 
+   ko3_matrix_path, ko4_barcodes_path,ko4_features_path, ko4_matrix_path,
+   expression_matrix)
+```
+
+
+```{r include=FALSE}
+#Merge four Atf44WT/WT B16F10 large tumour samples into one Atf4WT/WT
+wt <- merge(wt1_seurat_object, y = c(wt2_seurat_object, wt3_seurat_object, 
+                                     wt4_seurat_object), 
+            add.cell.ids = c("wt1", "wt2", "wt3", "wt4"), project = "aft4_wt")
+
+#set mitochondrial content for each cell for WT
+wt[["percent.mt"]]  <- PercentageFeatureSet(wt, pattern = "^mt-")
+
+#Merge four Atf4Δ/Δ B16F10 large tumour samples into one Atf4Δ/Δ
+ko <- merge(ko1_seurat_object, y = c(ko2_seurat_object, ko3_seurat_object, 
+                                     ko4_seurat_object), 
+            add.cell.ids = c("ko1", "ko2", "ko3", "ko4"), project = "aft4_ko")
+
+#set mitochondrial content for each cell for KO
+ko[["percent.mt"]]  <- PercentageFeatureSet(ko, pattern = "^mt-")
+
+#Clear up space
+rm(ko1_seurat_object, ko2_seurat_object, ko3_seurat_object, ko4_seurat_object, 
+   wt1_seurat_object, wt2_seurat_object, wt3_seurat_object, wt4_seurat_object)
+```
+
+
+```{r include=FALSE}
+# Discard cells expressing fewer than 200 or more than 5,000 unique genes and 
+# cells with more than 7.5% # mitochondrial content
+wt <- subset(wt, subset = nFeature_RNA > 200 & nFeature_RNA < 5000 & 
+               percent.mt < 7.5)
+ko <- subset(ko, subset = nFeature_RNA > 200 & nFeature_RNA < 5000 & 
+               percent.mt < 7.5)
+```
+
+```{r include=FALSE}
+# Normalization and 2,000 most variable genes across datasets identification
+wt <- NormalizeData(wt, normalization.method = "LogNormalize",
+                    scale.factor = 10000)
+ko <- NormalizeData(ko, normalization.method = "LogNormalize", 
+                    scale.factor = 10000)
+
+wt <- FindVariableFeatures(wt, selection.method = "vst", nfeatures = 2000)
+ko <- FindVariableFeatures(ko, selection.method = "vst", nfeatures = 2000)
+```
+
+```{r include=FALSE}
+#Integrate the WT and KO samples 
+lists <- list()
+lists[["wt"]] <- wt
+lists[["ko"]] <- ko
+
+anchors<- FindIntegrationAnchors(object.list = lists, dims = 1:30)
+
+#free up space
+rm(lists)
+
+seurat <- IntegrateData(anchorset = anchors, dims = 1:30)
+```
+
+```{r include=FALSE}
+#linear transformation
+seurat <- ScaleData(seurat, vars.to.regress= 'percent.mt')
+
+#unsupervised clustering of single-cells
+seurat <- RunPCA(seurat, npcs = 20)
+seurat<- RunUMAP(seurat, reduction = "pca", dims = 1:20)
+
+#find clusters
+seurat <- FindNeighbors(seurat, dims = 1:20)
+seurat <- FindClusters(seurat, pc.use = 1:20, resolution = 0.60)
+```
+
+```{r include=FALSE}
+#important genes in paper
+features <- c('Tyr', 'Mlana','Pmel','Dct','Mitf','Ptgds', 'Cd68','Lyz2','Aif1',
+            'Dab2','Lgals3', 'Trem2','Apoe','Ccl5','Cd3e','Cd3g','Nkg7','Cd3d',
+            'Gzma','Pecam1','Cdh5','Cd34','Flt1','Cldn5','Col1a1', 'Col1a2',
+            'Acta2','Dcn','Col3a1','Pdgfrb','Pdpn')
+```
+
+
+```{r include=FALSE}
+#Markers used to identify each cluster
+melanoma <- c('Tyr', 'Mlana','Pmel','Dct','Mitf','Ptgds')
+tams <- c('Cd68','Lyz2','Aif1','Dab2','Lgals3', 'Trem2','Apoe')
+tnk <- c('Ccl5','Cd3e','Cd3g','Nkg7','Cd3d','Gzma')
+cafs <- c('Col1a1','Col1a2','Acta2','Dcn','Col3a1','Pdgfrb','Pdpn')
+leukocytes <- c('Irf8','Ccr9','Plac8','Ly6d','Bst2')
+```
+
+
+```{r}
+DotPlot(seurat, features = features) + 
+  theme(axis.text.x = element_text(angle=90)) 
+```
+
+```{r}
+# Rename Clusters
+seurat <- RenameIdents(seurat, `0` = "Melanoma cells", `1` = "Melanoma cells", 
+                       `2` = "Melanoma cells", `3` = "Melanoma cells", 
+                       `4` = "Melanoma cells", `5` = "Melanoma cells", 
+                       `6` = "Melanoma cells", `7` = "Melanoma cells", 
+                       `8` = "Melanoma cells", `9` = "TAMs", 
+                       `10` = "Melanoma cells", `11` = "Melanoma cells", 
+                       `12` = "CAFs", `13` = "Melanoma cells",
+                       `14` = "Endothelial cells")
+
+DimPlot(seurat, reduction = "umap", label.size=3, label =TRUE)
+```
+
+
+```{r include=FALSE}
+#Subclustering of TAMs to identify T/NK cells and Leukocytes
+tam <- subset(seurat, idents = "TAMs")
+
+#Rerun #unsupervised clustering of single-cells on TAMs and Find clusters
+tam <- RunPCA(tam, npcs = 15)
+tam <- RunUMAP(tam, reduction = "pca", dims = 1:15)
+tam <- FindNeighbors(tam, dims = 1:15)
+tam <- FindClusters(tam, pc.use = 1:10, resolution = 0.6)
+```
+
+```{r}
+#Identify T/NK Cells
+FeaturePlot(tam, features = tnk, label.size = 3, label = TRUE)
+```
+
+
+```{r include=FALSE}
+#Save subclustering
+tam <- RenameIdents(tam, `0` = "TAMs", `1` = "TAMs", 
+                                `2` = "TAMs", `3` = "TAMs", `4` = "T cells",
+                                `5` = "TAMs", `6` = "TAMs", `7` = "TAMs")
+seurat$large_B16F10_tumors <- as.character(Idents(seurat))
+seurat$large_B16F10_tumors[Cells(tam)] <- paste(Idents(tam))
+```
+
+```{r}
+#Extended Data Fig. 2b
+DimPlot(seurat, group.by = "large_B16F10_tumors", reduction = "umap", 
+        label.size=3, label =TRUE)
+```
+
+```{r}
+#Extended Data Fig. 2c
+DotPlot(seurat, group.by = "large_B16F10_tumors", features = features) + 
+  theme(axis.text.x = element_text(angle=90))
+```
+
+
+```{r}
+#Extended Data Fig. 2e
+seurat<- SetIdent(seurat, value = "orig.ident")
+
+VlnPlot(seurat, features = "Atf4", group.by = 'large_B16F10_tumors', 
+        pt.size = 0, split.by = 'orig.ident', split.plot = TRUE) + 
+  ggtitle("Atf4 (large tumors)")
+```
+
+
+```{r}
+#Extended Data Fig. 2i
+seurat<- SetIdent(seurat, value = "large_B16F10_tumors")
+
+VlnPlot(seurat, features = c("Acta2", "Pdgfrb", "Col1a1", "Col1a2"),
+        group.by = 'large_B16F10_tumors', pt.size = 0, split.by = 'orig.ident',
+        split.plot = TRUE, idents = "CAFs", ncol =2)  
+
+```
+
+```{r include=FALSE}
+#Subclustering of CAFs to identify CAF cell types
+caf <- subset(seurat, idents = "CAFs")
+
+#Rerun unsupervised clustering of single-cells on CAFs Cluster 
+caf <- RunPCA(caf, npcs = 13)
+caf <- RunUMAP(caf, reduction = "pca", dims = 1:13)
+caf <- FindNeighbors(caf, dims = 1:13)
+caf <- FindClusters(caf, pc.use = 1:10, resolution = .6)
+```
+
+
+```{r}
+#Save CAFs subclustering
+caf <- RenameIdents(caf, `0` = "cCAFs", `1` = "mCAFs", 
+                        `2` = "melCAFs", `3` = "melCAFs", `4` = "vCAFs")
+seurat$caf <- as.character(Idents(seurat))
+seurat$caf[Cells(caf)] <- paste(Idents(caf))
+```
+
+```{r}
+#Extended Data Fig. 3a
+DimPlot(caf, reduction = "umap")
+```
+
+```{r}
+#Extended Data Fig. 3c
+caf_features <- c('Mfap5', 'Smoc2', 'Fbln1', 'Clip', 'Fbln2', 'Lox',
+                  'Mfap4', 'Loxl1', 'Dcn', 'Lum', 'Vcan', 'Omd', 
+                  'Bhlhe41', 'Aebp1', 'Mafb', 'Creb3l1', 'Egr2', 'Creg1', 
+                  'Svep1', 'Cxcl14','Igf1', 'Wnt11', 'Vegfc', 'Crabp1')
+
+DotPlot(caf, features = caf_features) + 
+        theme(axis.text.x = element_text(angle=90)) 
+```
+
+```{r}
+#Extended Data Fig. 3d
+VlnPlot(caf, features = c('Acta2', 'Pdgfrb'), pt.size = 0, same.y.lims = T, 
+        ncol =1)
+```
+
+
+
+
+
+
+
+
+
